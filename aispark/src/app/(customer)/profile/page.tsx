@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { User, Lock, Camera } from "lucide-react"
+import { User, Lock, Camera, Loader2 } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -13,25 +13,21 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PasswordInput } from "@/components/ui/password-input"
 import { profileSchema, changePasswordSchema, type ProfileFormValues, type ChangePasswordFormValues } from "@/lib/validations/profile"
-
-const MOCK_USER = {
-  name: "Alex Johnson",
-  email: "alex@example.com",
-  phone: "+1 (555) 987-6543",
-  address: "456 Oak Avenue, Apt 12, San Francisco, CA 94102",
-  avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80",
-}
+import { useProfile, useUpdateProfile, useChangePassword } from "@/lib/api/use-users"
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("profile")
+  const { data: user, isLoading } = useProfile()
+  const updateProfile = useUpdateProfile()
+  const changePassword = useChangePassword()
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: {
-      name: MOCK_USER.name,
-      email: MOCK_USER.email,
-      phone: MOCK_USER.phone,
-      address: MOCK_USER.address,
+    values: {
+      name: user?.name ?? "",
+      email: user?.email ?? "",
+      phone: user?.phone ?? "",
+      address: user?.address ?? "",
     },
   })
 
@@ -45,11 +41,21 @@ export default function ProfilePage() {
   })
 
   const onProfileSubmit = (data: ProfileFormValues) => {
-    console.log(data)
+    updateProfile.mutate(data)
   }
 
   const onPasswordSubmit = (data: ChangePasswordFormValues) => {
-    console.log(data)
+    changePassword.mutate(data, {
+      onSuccess: () => passwordForm.reset(),
+    })
+  }
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -63,16 +69,16 @@ export default function ProfilePage() {
         <div className="mb-8 flex items-center gap-4">
           <div className="relative">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={MOCK_USER.avatarUrl} alt={MOCK_USER.name} />
-              <AvatarFallback className="text-lg">{MOCK_USER.name.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
+              <AvatarImage src={user.avatarUrl} alt={user.name} />
+              <AvatarFallback className="text-lg">{user.name.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
             </Avatar>
             <button className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground transition-colors hover:bg-primary/90">
               <Camera className="h-4 w-4" />
             </button>
           </div>
           <div>
-            <h2 className="text-xl font-semibold">{MOCK_USER.name}</h2>
-            <p className="text-sm text-muted-foreground">{MOCK_USER.email}</p>
+            <h2 className="text-xl font-semibold">{user.name}</h2>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
         </div>
 
@@ -154,7 +160,9 @@ export default function ProfilePage() {
                     />
 
                     <div className="flex justify-end pt-2">
-                      <Button type="submit">Save Changes</Button>
+                      <Button type="submit" disabled={updateProfile.isPending}>
+                        {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                      </Button>
                     </div>
                   </form>
                 </Form>
@@ -214,7 +222,9 @@ export default function ProfilePage() {
                     />
 
                     <div className="flex justify-end pt-2">
-                      <Button type="submit">Update Password</Button>
+                      <Button type="submit" disabled={changePassword.isPending}>
+                        {changePassword.isPending ? "Updating..." : "Update Password"}
+                      </Button>
                     </div>
                   </form>
                 </Form>

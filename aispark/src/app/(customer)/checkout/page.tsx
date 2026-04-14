@@ -7,12 +7,14 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Shield, Lock, CheckCircle2, ChevronLeft, CreditCard, Calendar, Clock,
-  Sparkles, Star
+  Sparkles, Star, Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { useService } from "@/lib/api/use-services"
+import { useCreateBooking } from "@/lib/api/use-bookings"
 
 export default function CheckoutPage() {
   return (
@@ -104,24 +106,20 @@ function CheckoutContent() {
   const [isComplete, setIsComplete] = useState(false)
   const [cardNumber, setCardNumber] = useState("")
   const [expiry, setExpiry] = useState("")
+  const [bookingRef, setBookingRef] = useState("")
 
-  const serviceId = searchParams.get("serviceId") ?? "1"
-  const date = searchParams.get("date") ?? "2025-04-13"
-  const time = searchParams.get("time") ?? "10:00"
+  const serviceId = searchParams.get("serviceId") ?? ""
+  const date = searchParams.get("date") ?? ""
+  const time = searchParams.get("time") ?? ""
+
+  const { data: service, isLoading } = useService(serviceId)
+  const createBooking = useCreateBooking()
 
   const cardType = detectCardType(cardNumber)
 
-  const MOCK_SERVICE = {
-    name: "Deep Home Cleaning",
-    imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
-    price: 120,
-    platformFee: 6,
-    total: 126,
-    duration: "3 hours",
-    providerName: "CleanPro Services",
-    rating: 4.9,
-    reviews: 148,
-  }
+  const price = Number(service?.price ?? 0)
+  const platformFee = price * 0.05
+  const total = price + platformFee
 
   function handleCardNumberChange(e: React.ChangeEvent<HTMLInputElement>) {
     const type = detectCardType(e.target.value)
@@ -140,10 +138,27 @@ function CheckoutContent() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setIsProcessing(true)
-    setTimeout(() => {
-      setIsProcessing(false)
-      setIsComplete(true)
-    }, 2200)
+    createBooking.mutate(
+      { serviceId, scheduledDate: date, scheduledTime: time, address: "From checkout", notes: "" },
+      {
+        onSuccess: (booking) => {
+          setBookingRef(booking.id?.slice(0, 8).toUpperCase() ?? "")
+          setIsProcessing(false)
+          setIsComplete(true)
+        },
+        onError: () => {
+          setIsProcessing(false)
+        },
+      },
+    )
+  }
+
+  if (isLoading || !service) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (isComplete) {
@@ -161,12 +176,12 @@ function CheckoutContent() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <h1 className="mt-6 text-3xl font-bold">Booking Confirmed!</h1>
           <p className="mt-3 text-muted-foreground">
-            Your {MOCK_SERVICE.name} booking has been confirmed for{" "}
+            Your {service.name} booking has been confirmed for{" "}
             {new Date(date).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })} at {time}.
           </p>
           <div className="mt-6 rounded-xl border bg-muted/40 px-6 py-4 text-sm">
             <p className="font-semibold">Booking Reference</p>
-            <p className="mt-1 font-mono text-lg tracking-widest text-primary">BK-{Math.random().toString(36).slice(2, 8).toUpperCase()}</p>
+            <p className="mt-1 font-mono text-lg tracking-widest text-primary">BK-{bookingRef}</p>
             <p className="mt-2 text-muted-foreground">A confirmation email has been sent to your inbox.</p>
           </div>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -281,10 +296,10 @@ function CheckoutContent() {
                   <motion.div custom={3} variants={fieldVariants} initial="hidden" animate="show">
                     <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-sm dark:border-emerald-900/50 dark:bg-emerald-950/30">
                       <Shield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <div className="text-emerald-800 dark:text-emerald-300">
+                      <div className="text-emerald-800 dark:text-emerald-600">
                         <span className="font-semibold">256-bit SSL encryption</span> — Your payment information is encrypted and secure. We never store your card details.
                       </div>
-                    </div>
+                    </div>                            
                   </motion.div>
 
                   {/* Submit */}
@@ -316,7 +331,7 @@ function CheckoutContent() {
                             className="flex items-center gap-2"
                           >
                             <Lock className="h-4 w-4" />
-                            Pay ${MOCK_SERVICE.total.toFixed(2)} Securely
+                            Pay ${total.toFixed(2)} Securely
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -340,20 +355,20 @@ function CheckoutContent() {
               {/* Service Image */}
               <div className="relative h-40 w-full">
                 <Image
-                  src={MOCK_SERVICE.imageUrl}
-                  alt={MOCK_SERVICE.name}
+                  src={service.imageUrl}
+                  alt={service.name}
                   fill
                   sizes="(max-width: 1024px) 100vw, 40vw"
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3">
-                  <h3 className="font-bold text-white">{MOCK_SERVICE.name}</h3>
-                  <p className="text-sm text-white/80">by {MOCK_SERVICE.providerName}</p>
+                  <h3 className="font-bold text-white">{service.name}</h3>
+                  <p className="text-sm text-white/80">by {service.providerName ?? "Provider"}</p>
                 </div>
                 <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/20 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  {MOCK_SERVICE.rating} ({MOCK_SERVICE.reviews})
+                  {Number(service.rating).toFixed(1)} ({service.reviewCount})
                 </div>
               </div>
 
@@ -378,7 +393,7 @@ function CheckoutContent() {
                     <span className="flex items-center gap-2 text-muted-foreground">
                       <Sparkles className="h-3.5 w-3.5" /> Duration
                     </span>
-                    <span className="font-medium">{MOCK_SERVICE.duration}</span>
+                    <span className="font-medium">{service.duration} min</span>
                   </div>
                 </div>
 
@@ -386,15 +401,15 @@ function CheckoutContent() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Service fee</span>
-                    <span>${MOCK_SERVICE.price.toFixed(2)}</span>
+                    <span>${price.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Platform fee</span>
-                    <span>${MOCK_SERVICE.platformFee.toFixed(2)}</span>
+                    <span>${platformFee.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between border-t pt-3 text-base font-bold">
                     <span>Total due</span>
-                    <span className="text-primary">${MOCK_SERVICE.total.toFixed(2)}</span>
+                    <span className="text-primary">${total.toFixed(2)}</span>
                   </div>
                 </div>
 

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Plus, MoreHorizontal, Star } from "lucide-react"
+import { Search, Plus, MoreHorizontal, Star, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -23,21 +23,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-const MOCK_SERVICES = [
-  { id: "s1", name: "Deep Home Cleaning", category: "Home Cleaning", price: 120, duration: 180, rating: 4.8, reviewCount: 124, isActive: true, imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=100&q=80", provider: "CleanPro Services" },
-  { id: "s2", name: "Pipe Repair", category: "Plumbing", price: 85, duration: 90, rating: 4.7, reviewCount: 89, isActive: true, imageUrl: "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=100&q=80", provider: "FixIt Plumbing" },
-  { id: "s3", name: "Electrical Wiring", category: "Electrical", price: 95, duration: 120, rating: 4.9, reviewCount: 67, isActive: true, imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=100&q=80", provider: "Spark Electric" },
-  { id: "s4", name: "Interior Painting", category: "Painting", price: 200, duration: 480, rating: 4.6, reviewCount: 45, isActive: false, imageUrl: "https://images.unsplash.com/photo-1562259929-b4e1fd3aef09?w=100&q=80", provider: "ColorMaster" },
-  { id: "s5", name: "Furniture Assembly", category: "Carpentry", price: 60, duration: 60, rating: 4.5, reviewCount: 38, isActive: true, imageUrl: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=100&q=80", provider: "WoodWorks Pro" },
-  { id: "s6", name: "Lawn Maintenance", category: "Landscaping", price: 75, duration: 120, rating: 4.8, reviewCount: 95, isActive: true, imageUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=100&q=80", provider: "GreenThumb" },
-]
+import { useServices } from "@/lib/api/use-services"
 
 export default function AdminServicesPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const { data: services = [], isLoading } = useServices()
 
-  const filteredServices = MOCK_SERVICES.filter(
-    (s) => searchQuery === "" || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredServices = services.filter(
+    (s) =>
+      searchQuery === "" ||
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.categoryName ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   return (
@@ -66,6 +62,12 @@ export default function AdminServicesPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -93,14 +95,14 @@ export default function AdminServicesPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{service.category}</Badge>
+                    <Badge variant="outline">{service.categoryName ?? ""}</Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{service.provider}</TableCell>
-                  <TableCell className="font-medium">${service.price}</TableCell>
+                  <TableCell className="text-muted-foreground">{service.providerName ?? ""}</TableCell>
+                  <TableCell className="font-medium">${Number(service.price).toFixed(0)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                      <span className="text-sm">{service.rating}</span>
+                      <span className="text-sm">{Number(service.rating).toFixed(1)}</span>
                       <span className="text-xs text-muted-foreground">({service.reviewCount})</span>
                     </div>
                   </TableCell>
@@ -135,6 +137,8 @@ export default function AdminServicesPage() {
               <p className="text-lg font-medium">No services found</p>
               <p className="mt-1 text-sm text-muted-foreground">Try adjusting your search query</p>
             </div>
+          )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -29,29 +29,36 @@ export function DateTimePicker({ onSelect, bookedDates = [] }: DateTimePickerPro
 
   return (
     <Card className="gap-0 p-0">
-      <CardContent className="relative p-0 md:pr-48">
-        <div className="p-6">
+      <CardContent className="p-0">
+        {/* Calendar — full width, no competition for space */}
+        <div className="p-4">
           <Calendar
             mode="single"
             selected={date}
             onSelect={setDate}
             disabled={[...bookedDates, { before: new Date() }]}
             showOutsideDays={false}
-            className="bg-transparent p-0"
+            className="w-full bg-transparent p-0"
           />
         </div>
-        <div className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-l md:border-t-0">
-          <div className="grid gap-2">
-            {TIME_SLOTS.map((time) => (
-              <Button
-                key={time}
-                variant={selectedTime === time ? "default" : "outline"}
-                onClick={() => setSelectedTime(time)}
-                className="w-full shadow-none"
-              >
-                {time}
-              </Button>
-            ))}
+
+        {/* Time slots — 3-column grid below calendar, never overlapping */}
+        <div className="border-t p-4">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Available times</p>
+          <div className="no-scrollbar max-h-40 overflow-y-auto">
+            <div className="grid grid-cols-3 gap-1.5">
+              {TIME_SLOTS.map((time) => (
+                <Button
+                  key={time}
+                  variant={selectedTime === time ? "default" : "outline"}
+                  onClick={() => setSelectedTime(time)}
+                  size="sm"
+                  className="w-full text-xs shadow-none"
+                >
+                  {time}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       </CardContent>

@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion"
 import {
-  DollarSign, Users, CalendarCheck, TrendingUp, ArrowUpRight, ArrowDownRight,
-  Activity
+  DollarSign, Users, CalendarCheck, TrendingUp,
+  Activity, Loader2
 } from "lucide-react"
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -12,14 +12,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { KpiCard } from "@/components/admin/kpi-card"
 import { Badge } from "@/components/ui/badge"
+import { useDashboard } from "@/lib/api/use-users"
 import type { BookingStatus } from "@/types"
-
-const KPI_DATA = [
-  { title: "Total Revenue", value: "$45,231.89", change: 20.1, changeLabel: "from last month", icon: DollarSign },
-  { title: "Total Users", value: "2,350", change: 10.5, changeLabel: "from last month", icon: Users },
-  { title: "Active Bookings", value: "573", change: -3.2, changeLabel: "from last month", icon: CalendarCheck },
-  { title: "Growth Rate", value: "+12.5%", change: 4.1, changeLabel: "from last quarter", icon: TrendingUp },
-]
 
 const MONTHLY_REVENUE = [
   { month: "Jul", revenue: 28400, bookings: 310 },
@@ -60,22 +54,6 @@ const statusConfig: Record<BookingStatus, { label: string; variant: "default" | 
   cancelled: { label: "Cancelled", variant: "destructive" },
 }
 
-const RECENT_BOOKINGS = [
-  { id: "BK-001", customer: "Sarah Wilson", service: "Deep Cleaning", amount: "$126.00", status: "confirmed" as BookingStatus, date: "Apr 13" },
-  { id: "BK-002", customer: "Mike Chen", service: "Pipe Repair", amount: "$89.25", status: "in-progress" as BookingStatus, date: "Apr 12" },
-  { id: "BK-003", customer: "Emily Davis", service: "Electrical Wiring", amount: "$99.75", status: "pending" as BookingStatus, date: "Apr 12" },
-  { id: "BK-004", customer: "James Brown", service: "Interior Painting", amount: "$210.00", status: "completed" as BookingStatus, date: "Apr 11" },
-  { id: "BK-005", customer: "Lisa Taylor", service: "Lawn Care", amount: "$78.75", status: "cancelled" as BookingStatus, date: "Apr 11" },
-]
-
-const TOP_SERVICES = [
-  { name: "Deep Home Cleaning", bookings: 245, revenue: "$29,400", trend: 12 },
-  { name: "Pipe Repair", bookings: 187, revenue: "$15,895", trend: 8 },
-  { name: "Electrical Wiring", bookings: 156, revenue: "$14,820", trend: -3 },
-  { name: "Interior Painting", bookings: 134, revenue: "$26,800", trend: 15 },
-  { name: "Furniture Assembly", bookings: 98, revenue: "$5,880", trend: 5 },
-]
-
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 },
@@ -99,6 +77,31 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function AdminDashboardPage() {
+  const { data: dashboard, isLoading } = useDashboard()
+  const kpis = dashboard?.kpis
+  const recentBookings = (dashboard?.recentBookings ?? []) as Array<{
+    id: string; status: BookingStatus; scheduledDate: string; totalAmount: number;
+    customer?: { name: string }; service?: { name: string }
+  }>
+  const topServices = (dashboard?.topServices ?? []) as Array<{
+    id: string; name: string; bookingCount: number
+  }>
+
+  const KPI_DATA = [
+    { title: "Total Revenue", value: kpis ? `$${Number(kpis.totalRevenue).toLocaleString()}` : "—", change: 0, changeLabel: "", icon: DollarSign },
+    { title: "Total Users", value: kpis ? Number(kpis.totalUsers).toLocaleString() : "—", change: 0, changeLabel: "", icon: Users },
+    { title: "Total Bookings", value: kpis ? Number(kpis.totalBookings).toLocaleString() : "—", change: 0, changeLabel: "", icon: CalendarCheck },
+    { title: "Total Services", value: kpis ? Number(kpis.totalServices).toLocaleString() : "—", change: 0, changeLabel: "", icon: TrendingUp },
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <motion.div variants={stagger} initial="hidden" animate="show">
@@ -215,21 +218,24 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {RECENT_BOOKINGS.map((booking) => {
+                {recentBookings.map((booking) => {
                   const config = statusConfig[booking.status]
+                  const custName = booking.customer?.name ?? "Unknown"
                   return (
                     <div key={booking.id} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                          {booking.customer.split(" ").map((n) => n[0]).join("")}
+                          {custName.split(" ").map((n) => n[0]).join("")}
                         </div>
                         <div>
-                          <p className="text-sm font-medium">{booking.customer}</p>
-                          <p className="text-xs text-muted-foreground">{booking.service} · {booking.date}</p>
+                          <p className="text-sm font-medium">{custName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {booking.service?.name ?? "—"} · {new Date(booking.scheduledDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">{booking.amount}</span>
+                        <span className="text-sm font-medium">${Number(booking.totalAmount).toFixed(2)}</span>
                         <Badge variant={config.variant} className="text-xs">{config.label}</Badge>
                       </div>
                     </div>
@@ -245,23 +251,16 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {TOP_SERVICES.map((service, index) => (
-                  <div key={service.name} className="flex items-center justify-between">
+                {topServices.map((service, index) => (
+                  <div key={service.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-semibold">
                         {index + 1}
                       </div>
                       <div>
                         <p className="text-sm font-medium">{service.name}</p>
-                        <p className="text-xs text-muted-foreground">{service.bookings} bookings</p>
+                        <p className="text-xs text-muted-foreground">{service.bookingCount} bookings</p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{service.revenue}</span>
-                      <span className={`flex items-center text-xs font-medium ${service.trend >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                        {service.trend >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                        {Math.abs(service.trend)}%
-                      </span>
                     </div>
                   </div>
                 ))}

@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { use, useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { Star, Clock, MapPin, ChevronLeft, Shield, ThumbsUp } from "lucide-react"
+import { Star, Clock, MapPin, ChevronLeft, Shield, ThumbsUp, Loader2 } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { motion } from "framer-motion"
@@ -15,25 +15,20 @@ import { Badge } from "@/components/ui/badge"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { DateTimePicker } from "@/components/booking/date-time-picker"
 import { bookingSchema, type BookingFormValues } from "@/lib/validations/booking"
-
-const MOCK_SERVICES: Record<string, { id: string; name: string; description: string; price: number; duration: number; imageUrl: string; rating: number; reviewCount: number; categoryName: string; providerName: string; providerAvatar: string; features: string[] }> = {
-  "1": { id: "1", name: "Deep Home Cleaning", description: "Professional deep cleaning for your entire home including kitchen, bathrooms, and living areas. Our certified cleaning professionals use eco-friendly products and state-of-the-art equipment to ensure every corner of your home is spotless.", price: 120, duration: 180, imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80", rating: 4.8, reviewCount: 124, categoryName: "Home Cleaning", providerName: "CleanPro Services", providerAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80", features: ["Eco-friendly products", "Professional equipment", "Insured & bonded", "Satisfaction guaranteed"] },
-  "2": { id: "2", name: "Pipe Repair", description: "Expert pipe repair and replacement service for all types of plumbing emergencies. Our licensed plumbers can handle everything from minor leaks to complete pipe replacements.", price: 85, duration: 90, imageUrl: "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800&q=80", rating: 4.7, reviewCount: 89, categoryName: "Plumbing", providerName: "FixIt Plumbing", providerAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80", features: ["Licensed plumbers", "Emergency service", "Parts included", "1-year warranty"] },
-  "3": { id: "3", name: "Electrical Wiring", description: "Safe and certified electrical wiring installation and repair for homes and offices. All work complies with local building codes and safety standards.", price: 95, duration: 120, imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80", rating: 4.9, reviewCount: 67, categoryName: "Electrical", providerName: "Spark Electric Co.", providerAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80", features: ["Certified electricians", "Code compliant", "Safety inspection", "24/7 support"] },
-}
+import { useService } from "@/lib/api/use-services"
 
 export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [showBooking, setShowBooking] = useState(false)
   const [selectedDateTime, setSelectedDateTime] = useState<{ date: Date; time: string } | null>(null)
 
-  const { id } = { id: "1" }
-  const service = MOCK_SERVICES[id] ?? MOCK_SERVICES["1"]
+  const { data: service, isLoading } = useService(id)
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
-      serviceId: service.id,
+      serviceId: id,
       scheduledDate: "",
       scheduledTime: "",
       address: "",
@@ -50,6 +45,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   const onSubmit = (data: BookingFormValues) => {
     router.push(`/checkout?serviceId=${data.serviceId}&date=${data.scheduledDate}&time=${data.scheduledTime}`)
   }
+
+  if (isLoading || !service) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  const price = Number(service.price)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -73,7 +78,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
               <div className="mt-3 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-1">
                   <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
-                  <span className="font-semibold">{service.rating.toFixed(1)}</span>
+                  <span className="font-semibold">{Number(service.rating).toFixed(1)}</span>
                   <span className="text-muted-foreground">({service.reviewCount} reviews)</span>
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground">
@@ -91,7 +96,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
             <div className="mt-6">
               <h2 className="text-lg font-semibold">What&apos;s included</h2>
               <div className="mt-3 grid grid-cols-2 gap-3">
-                {service.features.map((feature) => (
+                {["Professional service", "Insured & bonded", "Satisfaction guaranteed", "Quality materials"].map((feature) => (
                   <div key={feature} className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-primary" />
                     <span className="text-sm">{feature}</span>
@@ -102,11 +107,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
 
             <Card className="mt-8">
               <CardContent className="flex items-center gap-4 p-4">
-                <div className="relative h-12 w-12 overflow-hidden rounded-full">
-                  <Image src={service.providerAvatar} alt={service.providerName} fill sizes="48px" className="object-cover" />
-                </div>
+                {service.providerAvatar && (
+                  <div className="relative h-12 w-12 overflow-hidden rounded-full">
+                    <Image src={service.providerAvatar} alt={service.providerName ?? ""} fill sizes="48px" className="object-cover" />
+                  </div>
+                )}
                 <div className="flex-1">
-                  <p className="font-semibold">{service.providerName}</p>
+                  <p className="font-semibold">{service.providerName ?? "Service Provider"}</p>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <ThumbsUp className="h-3 w-3" />
                     <span>Verified Professional</span>
@@ -123,7 +130,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>Book this service</span>
-                  <span className="text-2xl font-bold text-primary">${service.price}</span>
+                  <span className="text-2xl font-bold text-primary">${price}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -172,15 +179,15 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
                           <div className="rounded-lg border p-3 text-sm">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Service</span>
-                              <span>${service.price.toFixed(2)}</span>
+                              <span>${price.toFixed(2)}</span>
                             </div>
                             <div className="mt-1 flex justify-between">
                               <span className="text-muted-foreground">Platform fee</span>
-                              <span>${(service.price * 0.05).toFixed(2)}</span>
+                              <span>${(price * 0.05).toFixed(2)}</span>
                             </div>
                             <div className="mt-2 flex justify-between border-t pt-2 font-semibold">
                               <span>Total</span>
-                              <span>${(service.price * 1.05).toFixed(2)}</span>
+                              <span>${(price * 1.05).toFixed(2)}</span>
                             </div>
                           </div>
 

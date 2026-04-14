@@ -16,6 +16,9 @@ export type Service = {
   description: string
   categoryId: string
   category: ServiceCategory
+  categoryName: string
+  providerName: string
+  providerAvatar: string
   price: number
   duration: number
   imageUrl: string

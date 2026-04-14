@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Search, MoreHorizontal, UserPlus } from "lucide-react"
+import { Search, MoreHorizontal, UserPlus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,19 +24,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { UserRole } from "@/types"
+import { useUsers, useToggleUserStatus } from "@/lib/api/use-users"
+import type { User, UserRole } from "@/types"
 
-const MOCK_USERS = [
-  { id: "u1", name: "Sarah Wilson", email: "sarah@example.com", role: "customer" as UserRole, phone: "+1 555-0101", isActive: true, bookings: 12, createdAt: "Nov 15, 2024", avatarUrl: "" },
-  { id: "u2", name: "Mike Chen", email: "mike@example.com", role: "provider" as UserRole, phone: "+1 555-0102", isActive: true, bookings: 0, createdAt: "Oct 22, 2024", avatarUrl: "" },
-  { id: "u3", name: "Emily Davis", email: "emily@example.com", role: "customer" as UserRole, phone: "+1 555-0103", isActive: true, bookings: 8, createdAt: "Dec 1, 2024", avatarUrl: "" },
-  { id: "u4", name: "James Brown", email: "james@example.com", role: "provider" as UserRole, phone: "+1 555-0104", isActive: false, bookings: 0, createdAt: "Sep 10, 2024", avatarUrl: "" },
-  { id: "u5", name: "Lisa Taylor", email: "lisa@example.com", role: "customer" as UserRole, phone: "+1 555-0105", isActive: true, bookings: 3, createdAt: "Dec 10, 2024", avatarUrl: "" },
-  { id: "u6", name: "Robert Martinez", email: "robert@example.com", role: "provider" as UserRole, phone: "+1 555-0106", isActive: true, bookings: 0, createdAt: "Nov 5, 2024", avatarUrl: "" },
-  { id: "u7", name: "Anna Lee", email: "anna@example.com", role: "customer" as UserRole, phone: "+1 555-0107", isActive: false, bookings: 1, createdAt: "Aug 20, 2024", avatarUrl: "" },
-]
+function UserTable({ users }: { users: User[] }) {
+  const toggleStatus = useToggleUserStatus()
 
-function UserTable({ users }: { users: typeof MOCK_USERS }) {
   return (
     <Table>
       <TableHeader>
@@ -71,7 +64,7 @@ function UserTable({ users }: { users: typeof MOCK_USERS }) {
                 {user.isActive ? "Active" : "Inactive"}
               </Badge>
             </TableCell>
-            <TableCell className="text-muted-foreground">{user.createdAt}</TableCell>
+            <TableCell className="text-muted-foreground">{new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</TableCell>
             <TableCell>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -83,7 +76,9 @@ function UserTable({ users }: { users: typeof MOCK_USERS }) {
                   <DropdownMenuItem asChild>
                     <Link href={`/admin/users/${user.id}`}>View Details</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>{user.isActive ? "Deactivate" : "Activate"}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toggleStatus.mutate({ id: user.id, isActive: !user.isActive })}>
+                    {user.isActive ? "Deactivate" : "Activate"}
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-destructive">Delete User</DropdownMenuItem>
                 </DropdownMenuContent>
@@ -99,12 +94,16 @@ function UserTable({ users }: { users: typeof MOCK_USERS }) {
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
+  const { data: users = [], isLoading } = useUsers(
+    activeTab !== "all" ? { role: activeTab } : {},
+  )
 
-  const filteredUsers = MOCK_USERS.filter((user) => {
-    const matchesSearch = searchQuery === "" || user.name.toLowerCase().includes(searchQuery.toLowerCase()) || user.email.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesTab = activeTab === "all" || user.role === activeTab
-    return matchesSearch && matchesTab
-  })
+  const filteredUsers = users.filter(
+    (user) =>
+      searchQuery === "" ||
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
 
   return (
     <div className="space-y-6">
@@ -141,7 +140,11 @@ export default function AdminUsersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {filteredUsers.length > 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredUsers.length > 0 ? (
             <UserTable users={filteredUsers} />
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
