@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { useSettings } from "@/contexts/settings-context"
 
 const navItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -26,6 +27,7 @@ const navItems = [
 export function AdminSidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const { settings } = useSettings()
 
   return (
     <aside
@@ -40,7 +42,7 @@ export function AdminSidebar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <span className="text-sm font-bold text-primary-foreground">S</span>
             </div>
-            <span className="text-lg font-bold">Admin</span>
+            <span className="text-lg font-bold">{settings.platformName}</span>
           </Link>
         )}
         <Button variant="ghost" size="icon" onClick={() => setCollapsed(!collapsed)} className="h-8 w-8">

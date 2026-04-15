@@ -85,14 +85,14 @@ export function ServiceCard({
           <div className="mt-3 flex items-center gap-2">
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              <span className="text-sm font-medium">{rating.toFixed(1)}</span>
+              <span className="text-sm font-medium">{Number(rating).toFixed(1)}</span>
             </div>
             <span className="text-sm text-muted-foreground">({reviewCount} reviews)</span>
           </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between border-t px-4 py-3">
           <div>
-            <span className="text-lg font-bold">${price}</span>
+            <span className="text-lg font-bold">${Number(price).toFixed(0)}</span>
             <span className="text-sm text-muted-foreground"> / {duration}min</span>
           </div>
           <Button asChild size="sm">

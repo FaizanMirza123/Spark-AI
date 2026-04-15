@@ -642,7 +642,7 @@ function AdminForm({ onSwitchMode, setPassword, setShowPassword, setIsTypingEmai
     setIsLoading(true)
     try {
       await login.mutateAsync(data)
-      router.push("/admin/dashboard")
+      router.push("/admin")
     } catch {
       form.setError("root", { message: "Invalid admin credentials" })
     } finally {

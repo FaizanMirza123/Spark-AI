@@ -92,7 +92,6 @@ router.post("/", authenticate, bookingRules, validate, createBooking);
 router.patch(
   "/:id/status",
   authenticate,
-  authorize("admin", "provider"),
   uuidParam,
   body("status").isIn(["confirmed", "in-progress", "completed", "cancelled"]),
   validate,

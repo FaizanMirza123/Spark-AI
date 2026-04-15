@@ -1,11 +1,14 @@
 "use client"
 
+import { use } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Calendar, Clock, MapPin, MessageSquare, User, Wrench } from "lucide-react"
+import { ChevronLeft, Calendar, Clock, MapPin, MessageSquare, User, Wrench, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TrackingTimeline } from "@/components/booking/tracking-timeline"
+import { useBooking, useUpdateBookingStatus } from "@/lib/api/use-bookings"
+import { useSettings } from "@/contexts/settings-context"
 import type { BookingStatus, BookingStep } from "@/types"
 
 const statusConfig: Record<BookingStatus, { label: string; variant: "default" | "secondary" | "destructive" | "success" | "warning" | "outline" }> = {
@@ -16,35 +19,76 @@ const statusConfig: Record<BookingStatus, { label: string; variant: "default" | 
   cancelled: { label: "Cancelled", variant: "destructive" },
 }
 
-const MOCK_BOOKING = {
-  id: "BK-001",
-  customer: { name: "Sarah Wilson", email: "sarah@example.com", phone: "+1 555-0101" },
-  provider: { name: "CleanPro Services", email: "info@cleanpro.com", phone: "+1 555-0201" },
-  service: "Deep Home Cleaning",
-  status: "confirmed" as BookingStatus,
-  date: "Dec 28, 2024",
-  time: "10:00 AM",
-  duration: "3 hours",
-  address: "123 Main Street, Apt 4B, New York, NY 10001",
-  notes: "Please bring eco-friendly cleaning products. I have a pet cat.",
-  amount: 120,
-  platformFee: 6,
-  total: 126,
-  createdAt: "Dec 26, 2024 3:45 PM",
+function buildSteps(status: BookingStatus, createdAt: string, scheduledDate: string, scheduledTime: string): BookingStep[] {
+  const ordered: BookingStatus[] = ["pending", "confirmed", "in-progress", "completed"]
+  const idx = ordered.indexOf(status)
+  const isCancelled = status === "cancelled"
+
+  return [
+    {
+      id: 1,
+      title: "Booking Placed",
+      date: new Date(createdAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }),
+      status: "completed",
+    },
+    {
+      id: 2,
+      title: "Booking Confirmed",
+      date: isCancelled ? "Cancelled" : idx >= 1 ? "Confirmed" : "Awaiting confirmation",
+      status: isCancelled ? "pending" : idx >= 1 ? "completed" : "pending",
+    },
+    {
+      id: 3,
+      title: "Provider En Route",
+      date: isCancelled ? "—" : idx >= 2 ? "En route" : `Scheduled: ${scheduledDate} ${scheduledTime}`,
+      status: isCancelled ? "pending" : idx >= 2 ? "completed" : "pending",
+    },
+    {
+      id: 4,
+      title: "Service In Progress",
+      date: isCancelled ? "—" : idx === 2 ? "In progress" : idx > 2 ? "Completed" : "Pending",
+      status: isCancelled ? "pending" : idx === 2 ? "in-progress" : idx > 2 ? "completed" : "pending",
+    },
+    {
+      id: 5,
+      title: "Service Completed",
+      date: isCancelled ? "Cancelled" : idx >= 3 ? "Completed" : "Pending",
+      status: isCancelled ? "pending" : idx >= 3 ? "completed" : "pending",
+    },
+  ]
 }
 
-const MOCK_STEPS: BookingStep[] = [
-  { id: 1, title: "Booking Placed", date: "Dec 26, 2024 - 3:45 PM", status: "completed" },
-  { id: 2, title: "Booking Confirmed", date: "Dec 26, 2024 - 4:12 PM", status: "completed" },
-  { id: 3, title: "Provider En Route", date: "Scheduled: Dec 28, 9:45 AM", status: "pending" },
-  { id: 4, title: "Service In Progress", date: "Estimated: 10:00 AM", status: "pending" },
-  { id: 5, title: "Service Completed", date: "Estimated: 1:00 PM", status: "pending" },
-]
-
-export default function AdminBookingDetailPage() {
+export default function AdminBookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
-  const booking = MOCK_BOOKING
+  const { data: booking, isLoading } = useBooking(id)
+  const updateStatus = useUpdateBookingStatus()
+  const { settings, formatPrice } = useSettings()
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!booking) {
+    return <div className="py-20 text-center text-muted-foreground">Booking not found.</div>
+  }
+
   const config = statusConfig[booking.status]
+  const totalAmount = Number(booking.totalAmount)
+  const feeRate = settings.platformFee / 100
+  const serviceCharge = totalAmount / (1 + feeRate)
+  const platformFee = totalAmount - serviceCharge
+  const steps = buildSteps(booking.status, booking.createdAt, booking.scheduledDate, booking.scheduledTime)
+
+  const handleConfirm = () => updateStatus.mutate({ id, status: "confirmed" })
+  const handleCancel = () => {
+    if (!confirm("Cancel this booking?")) return
+    updateStatus.mutate({ id, status: "cancelled" })
+  }
 
   return (
     <div className="space-y-6">
@@ -55,15 +99,25 @@ export default function AdminBookingDetailPage() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Booking {booking.id}</h1>
-          <p className="text-sm text-muted-foreground">Created {booking.createdAt}</p>
+          <h1 className="text-2xl font-bold">Booking #{id.slice(0, 8).toUpperCase()}</h1>
+          <p className="text-sm text-muted-foreground">
+            Created {new Date(booking.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant={config.variant} className="text-sm">{config.label}</Badge>
           {booking.status !== "completed" && booking.status !== "cancelled" && (
             <div className="flex gap-2">
-              {booking.status === "pending" && <Button size="sm">Confirm</Button>}
-              <Button size="sm" variant="destructive">Cancel Booking</Button>
+              {booking.status === "pending" && (
+                <Button size="sm" disabled={updateStatus.isPending} onClick={handleConfirm}>
+                  {updateStatus.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Confirm
+                </Button>
+              )}
+              <Button size="sm" variant="destructive" disabled={updateStatus.isPending} onClick={handleCancel}>
+                {updateStatus.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                Cancel Booking
+              </Button>
             </div>
           )}
         </div>
@@ -76,7 +130,7 @@ export default function AdminBookingDetailPage() {
               <CardTitle>Timeline</CardTitle>
             </CardHeader>
             <CardContent>
-              <TrackingTimeline items={MOCK_STEPS} />
+              <TrackingTimeline items={steps} />
             </CardContent>
           </Card>
 
@@ -90,21 +144,25 @@ export default function AdminBookingDetailPage() {
                   <Wrench className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">Service</p>
-                    <p className="text-sm text-muted-foreground">{booking.service}</p>
+                    <p className="text-sm text-muted-foreground">{booking.service?.name ?? "—"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Calendar className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">Date</p>
-                    <p className="text-sm text-muted-foreground">{booking.date}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(booking.scheduledDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Clock className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Time & Duration</p>
-                    <p className="text-sm text-muted-foreground">{booking.time} ({booking.duration})</p>
+                    <p className="text-sm font-medium">Time &amp; Duration</p>
+                    <p className="text-sm text-muted-foreground">
+                      {booking.scheduledTime}{booking.service?.duration ? ` (${booking.service.duration} min)` : ""}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -119,7 +177,7 @@ export default function AdminBookingDetailPage() {
                 <div className="flex items-start gap-3 rounded-lg border p-3">
                   <MessageSquare className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Notes</p>
+                    <p className="text-sm font-medium">Notes from Customer</p>
                     <p className="text-sm text-muted-foreground">{booking.notes}</p>
                   </div>
                 </div>
@@ -137,9 +195,9 @@ export default function AdminBookingDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p className="font-medium">{booking.customer.name}</p>
-              <p className="text-muted-foreground">{booking.customer.email}</p>
-              <p className="text-muted-foreground">{booking.customer.phone}</p>
+              <p className="font-medium">{booking.customer?.name ?? "—"}</p>
+              <p className="text-muted-foreground">{booking.customer?.email ?? "—"}</p>
+              {booking.customer?.phone && <p className="text-muted-foreground">{booking.customer.phone}</p>}
             </CardContent>
           </Card>
 
@@ -151,9 +209,9 @@ export default function AdminBookingDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p className="font-medium">{booking.provider.name}</p>
-              <p className="text-muted-foreground">{booking.provider.email}</p>
-              <p className="text-muted-foreground">{booking.provider.phone}</p>
+              <p className="font-medium">{booking.provider?.name ?? "—"}</p>
+              <p className="text-muted-foreground">{booking.provider?.email ?? "—"}</p>
+              {booking.provider?.phone && <p className="text-muted-foreground">{booking.provider.phone}</p>}
             </CardContent>
           </Card>
 
@@ -164,15 +222,15 @@ export default function AdminBookingDetailPage() {
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Service charge</span>
-                <span>${booking.amount.toFixed(2)}</span>
+                <span>{formatPrice(serviceCharge)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Platform fee</span>
-                <span>${booking.platformFee.toFixed(2)}</span>
+                <span className="text-muted-foreground">Platform fee ({settings.platformFee}%)</span>
+                <span>{formatPrice(platformFee)}</span>
               </div>
               <div className="flex justify-between border-t pt-2 font-semibold">
                 <span>Total</span>
-                <span>${booking.total.toFixed(2)}</span>
+                <span>{formatPrice(totalAmount)}</span>
               </div>
             </CardContent>
           </Card>

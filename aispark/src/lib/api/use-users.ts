@@ -43,6 +43,27 @@ export function useToggleUserStatus() {
   })
 }
 
+export function useDeleteUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete<void>(`/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
+    },
+  })
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; email: string; password: string; role: string }) =>
+      apiClient.post<User>("/users", data as unknown as Record<string, unknown>),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
+    },
+  })
+}
+
 export function useProfile() {
   return useQuery({
     queryKey: ["profile"],

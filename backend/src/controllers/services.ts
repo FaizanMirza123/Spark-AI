@@ -6,8 +6,8 @@ import { AppError } from "../middleware/error.js";
 import { Op } from "sequelize";
 
 export async function listServices(req: Request, res: Response) {
-  const { category, search, page = "1", limit = "20" } = req.query as Record<string, string>;
-  const where: Record<string, unknown> = { isActive: true };
+  const { category, search, page = "1", limit = "20", showAll } = req.query as Record<string, string>;
+  const where: Record<string, unknown> = showAll === "true" ? {} : { isActive: true };
   if (category) {
     const cat = await Category.findOne({ where: { slug: category } });
     if (!cat) { res.json([]); return; }
@@ -82,6 +82,13 @@ export async function updateService(req: Request, res: Response) {
   await service.update(req.body);
   const full = await Service.findByPk(service.id, { include: [Category] });
   res.json(full);
+}
+
+export async function deleteService(req: Request, res: Response) {
+  const service = await Service.findByPk(req.params.id as string);
+  if (!service) throw new AppError(404, "Service not found");
+  await service.destroy();
+  res.status(204).send();
 }
 
 export async function listCategories(_req: Request, res: Response) {

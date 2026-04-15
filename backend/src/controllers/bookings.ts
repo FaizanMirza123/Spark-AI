@@ -94,6 +94,15 @@ export async function updateBookingStatus(req: Request, res: Response) {
   const booking = await Booking.findByPk(req.params.id as string);
   if (!booking) throw new AppError(404, "Booking not found");
 
+  const { role, userId } = req.user!;
+  // Customers can only cancel their own bookings
+  if (role === "customer") {
+    if (booking.customerId !== userId) throw new AppError(403, "Access denied");
+    if (req.body.status !== "cancelled") throw new AppError(403, "Customers may only cancel bookings");
+  } else if (role === "provider" && booking.providerId !== userId) {
+    throw new AppError(403, "Access denied");
+  }
+
   const { status } = req.body;
   const allowed: Record<string, string[]> = {
     pending: ["confirmed", "cancelled"],

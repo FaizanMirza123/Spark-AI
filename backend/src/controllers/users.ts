@@ -29,7 +29,44 @@ export async function listUsers(req: Request, res: Response) {
 export async function getUser(req: Request, res: Response) {
   const user = await User.findByPk(req.params.id as string, { include: [Role] });
   if (!user) throw new AppError(404, "User not found");
-  res.json(user.toSafe());
+
+  const safe = user.toSafe() as Record<string, unknown>;
+
+  // Booking stats for this user
+  const [totalBookings, completedBookings, cancelledBookings, revenueResult] = await Promise.all([
+    Booking.count({ where: { [user.role === "provider" ? "providerId" : "customerId"]: user.id } }),
+    Booking.count({ where: { [user.role === "provider" ? "providerId" : "customerId"]: user.id, status: "completed" } }),
+    Booking.count({ where: { [user.role === "provider" ? "providerId" : "customerId"]: user.id, status: "cancelled" } }),
+    Booking.sum("totalAmount", { where: { [user.role === "provider" ? "providerId" : "customerId"]: user.id, status: "completed" } }),
+  ]);
+
+  const recentBookings = await Booking.findAll({
+    where: { [user.role === "provider" ? "providerId" : "customerId"]: user.id },
+    include: [
+      { model: Service, attributes: ["id", "name"] },
+    ],
+    order: [["createdAt", "DESC"]],
+    limit: 5,
+  });
+
+  res.json({
+    ...safe,
+    stats: {
+      totalBookings,
+      completedBookings,
+      cancelledBookings,
+      totalSpent: revenueResult ?? 0,
+    },
+    recentActivity: recentBookings.map((b) => {
+      const j = b.toJSON() as Record<string, unknown>;
+      return {
+        id: j.id,
+        action: `${j.status === "cancelled" ? "Cancelled" : j.status === "completed" ? "Completed" : "Booked"} ${((j.Service as Record<string, unknown>)?.name as string) ?? "service"}`,
+        date: new Date(j.createdAt as string).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        amount: `$${Number(j.totalAmount).toFixed(2)}`,
+      };
+    }),
+  });
 }
 
 export async function updateUser(req: Request, res: Response) {
@@ -38,6 +75,25 @@ export async function updateUser(req: Request, res: Response) {
   const { name, email, phone, address } = req.body;
   await user.update({ name, email, phone, address });
   res.json(user.toSafe());
+}
+
+export async function deleteUser(req: Request, res: Response) {
+  const user = await User.findByPk(req.params.id as string);
+  if (!user) throw new AppError(404, "User not found");
+  if (user.id === req.user!.userId) throw new AppError(400, "Cannot delete your own account");
+  await user.destroy();
+  res.status(204).send();
+}
+
+export async function createUser(req: Request, res: Response) {
+  const { name, email, password, role: roleName } = req.body;
+  const existing = await User.findOne({ where: { email } });
+  if (existing) throw new AppError(409, "Email already registered");
+  const role = await Role.findOne({ where: { name: roleName ?? "customer" } });
+  if (!role) throw new AppError(400, "Invalid role");
+  const user = await User.create({ name, email, password, roleId: role.id });
+  const full = await User.findByPk(user.id, { include: [Role] });
+  res.status(201).json(full!.toSafe());
 }
 
 export async function toggleUserStatus(req: Request, res: Response) {

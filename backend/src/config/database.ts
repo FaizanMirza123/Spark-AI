@@ -13,7 +13,7 @@ const sequelize =
         host: env.db.host,
         port: env.db.port,
         dialect: "mysql",
-        logging: env.nodeEnv === "development" ? console.log : false,
+        logging: false,
         define: { underscored: true, timestamps: true },
       });
 

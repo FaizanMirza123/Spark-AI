@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { motion } from "framer-motion"
 import { User, Lock, Camera, Loader2 } from "lucide-react"
 import { useForm } from "react-hook-form"
@@ -17,9 +17,24 @@ import { useProfile, useUpdateProfile, useChangePassword } from "@/lib/api/use-u
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("profile")
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { data: user, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const changePassword = useChangePassword()
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setAvatarPreview(url)
+    // Pass avatarUrl as base64 or object URL to updateProfile
+    const reader = new FileReader()
+    reader.onload = () => {
+      updateProfile.mutate({ avatarUrl: reader.result as string } as ProfileFormValues & { avatarUrl: string })
+    }
+    reader.readAsDataURL(file)
+  }
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -69,10 +84,21 @@ export default function ProfilePage() {
         <div className="mb-8 flex items-center gap-4">
           <div className="relative">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user.avatarUrl} alt={user.name} />
+              <AvatarImage src={avatarPreview ?? user.avatarUrl} alt={user.name} />
               <AvatarFallback className="text-lg">{user.name.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
             </Avatar>
-            <button className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground transition-colors hover:bg-primary/90">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+            >
               <Camera className="h-4 w-4" />
             </button>
           </div>

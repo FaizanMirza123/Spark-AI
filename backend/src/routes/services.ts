@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listServices, getService, createService, updateService, listCategories } from "../controllers/services.js";
+import { listServices, getService, createService, updateService, deleteService, listCategories } from "../controllers/services.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { serviceRules, uuidParam, validate } from "../middleware/validate.js";
 
@@ -107,5 +107,7 @@ router.post("/services", authenticate, authorize("admin", "provider"), serviceRu
  *       200: { description: Service updated }
  */
 router.put("/services/:id", authenticate, authorize("admin"), uuidParam, validate, updateService);
+
+router.delete("/services/:id", authenticate, authorize("admin"), uuidParam, validate, deleteService);
 
 export default router;

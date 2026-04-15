@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { Search, Plus, MoreHorizontal, Star, Loader2 } from "lucide-react"
@@ -23,11 +24,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useServices } from "@/lib/api/use-services"
+import { useServices, useDeleteService, useToggleServiceStatus } from "@/lib/api/use-services"
 
 export default function AdminServicesPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const { data: services = [], isLoading } = useServices()
+  const router = useRouter()
+  const { data: services = [], isLoading } = useServices({ showAll: "true" })
+  const deleteService = useDeleteService()
+  const toggleStatus = useToggleServiceStatus()
 
   const filteredServices = services.filter(
     (s) =>
@@ -43,7 +47,7 @@ export default function AdminServicesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Services</h1>
           <p className="text-muted-foreground">Manage all services on the platform</p>
         </div>
-        <Button>
+        <Button onClick={() => router.push("/admin/services/new")}>
           <Plus className="mr-2 h-4 w-4" />
           Add Service
         </Button>
@@ -122,9 +126,23 @@ export default function AdminServicesPage() {
                         <DropdownMenuItem asChild>
                           <Link href={`/admin/services/${service.id}`}>Edit Service</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>{service.isActive ? "Deactivate" : "Activate"}</DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => toggleStatus.mutate({ id: service.id, isActive: !service.isActive })}
+                          disabled={toggleStatus.isPending}
+                        >
+                          {service.isActive ? "Deactivate" : "Activate"}
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => {
+                            if (!confirm(`Delete "${service.name}"? This cannot be undone.`)) return
+                            deleteService.mutate(service.id)
+                          }}
+                          disabled={deleteService.isPending}
+                        >
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

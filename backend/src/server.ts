@@ -3,7 +3,7 @@ import env from "./config/env.js";
 import app from "./app.js";
 import { seed } from "./config/seed.js";
 
-// Import models so Sequelize registers them
+
 import "./models/index.js";
 
 async function start() {
@@ -11,7 +11,7 @@ async function start() {
     await sequelize.authenticate();
     console.log("Database connected");
 
-    await sequelize.sync({ alter: env.nodeEnv === "development" });
+    await sequelize.sync({ alter: env.nodeEnv === "development" ? { drop: false } : false });
     console.log("Database synced");
 
     await seed();

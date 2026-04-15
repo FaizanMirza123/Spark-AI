@@ -120,7 +120,6 @@ describe("Services API", () => {
     const cookies: string[] = login.headers["set-cookie"];
     providerCookie = cookies.find((c) => c.startsWith("session-token="))!;
 
-    // Seed a category
     const cat = await Category.create({
       name: "Cleaning",
       slug: "cleaning",
@@ -128,7 +127,6 @@ describe("Services API", () => {
     });
     categoryId = cat.id;
 
-    // Seed a service
     const svc = await Service.create({
       name: "Deep Clean",
       description: "Full deep cleaning",

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listUsers, getUser, updateUser, toggleUserStatus, getProfile, updateProfile, changePassword, getDashboard } from "../controllers/users.js";
+import { listUsers, getUser, updateUser, deleteUser, createUser, toggleUserStatus, getProfile, updateProfile, changePassword, getDashboard } from "../controllers/users.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { uuidParam, validate } from "../middleware/validate.js";
 import { body } from "express-validator";
@@ -24,6 +24,15 @@ const router = Router();
  *       200: { description: Array of users }
  */
 router.get("/", authenticate, authorize("admin"), listUsers);
+
+router.post("/", authenticate, authorize("admin"),
+  body("name").trim().isLength({ min: 2 }),
+  body("email").isEmail().normalizeEmail(),
+  body("password").isLength({ min: 8 }).matches(/[0-9]/).matches(/[a-z]/).matches(/[A-Z]/),
+  body("role").optional().isIn(["customer", "provider", "admin"]),
+  validate,
+  createUser,
+);
 
 /**
  * @swagger
@@ -145,6 +154,8 @@ router.get("/:id", authenticate, authorize("admin"), uuidParam, validate, getUse
  *       200: { description: User updated }
  */
 router.put("/:id", authenticate, authorize("admin"), uuidParam, validate, updateUser);
+
+router.delete("/:id", authenticate, authorize("admin"), uuidParam, validate, deleteUser);
 
 /**
  * @swagger
