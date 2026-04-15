@@ -25,6 +25,7 @@ app.use(
   }),
 );
 
+app.set("trust proxy", 1);
 // Rate limiting
 app.use(
   rateLimit({
