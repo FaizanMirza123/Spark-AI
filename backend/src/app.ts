@@ -42,11 +42,11 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // Swagger docs
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get("/docs.json", (_req, res) => res.json(swaggerSpec));
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/api/docs.json", (_req, res) => res.json(swaggerSpec));
 
 // Health check
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
 // API routes
 app.use("/api/auth", authRoutes);
