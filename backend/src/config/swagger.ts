@@ -8,7 +8,6 @@ const options: swaggerJsdoc.Options = {
       version: "1.0.0",
       description: "REST API for the SparkAI home services platform",
     },
-    servers: [{ url: process.env.SERVER_URL ?? `http://localhost:${process.env.PORT ?? 4000}`, description: "Server" }],
     components: {
       securitySchemes: {
         cookieAuth: {
