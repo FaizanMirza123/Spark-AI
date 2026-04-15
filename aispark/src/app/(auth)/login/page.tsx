@@ -491,8 +491,8 @@ function LoginForm({ onSwitchMode, setPassword, setShowPassword, setIsTypingEmai
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true)
     try {
-      await login.mutateAsync(data)
-      router.push("/")
+      const user = await login.mutateAsync(data)
+      router.push(user.role === "admin" ? "/admin" : "/")
     } catch {
       form.setError("root", { message: "Invalid email or password" })
     } finally {
@@ -641,7 +641,11 @@ function AdminForm({ onSwitchMode, setPassword, setShowPassword, setIsTypingEmai
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true)
     try {
-      await login.mutateAsync(data)
+      const user = await login.mutateAsync(data)
+      if (user.role !== "admin") {
+        form.setError("root", { message: "Access denied. Admin credentials required." })
+        return
+      }
       router.push("/admin")
     } catch {
       form.setError("root", { message: "Invalid admin credentials" })
