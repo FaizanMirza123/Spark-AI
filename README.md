@@ -46,6 +46,7 @@ JWT_SECRET=anysecret
 
 The database seeds automatically on first run.
 
+DOCUMENTATION Link : https://aispark.duckdns.org/api/docs
 ### 3. Frontend
 
 ```bash
