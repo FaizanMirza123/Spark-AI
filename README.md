@@ -9,8 +9,6 @@ Live: **[aispark.duckdns.org](http://aispark.duckdns.org)**
 | Role     | Email                    | Password      |
 |----------|--------------------------|---------------|
 | Admin    | admin@sparkai.com        | Admin123!     |
-| Provider | provider1@sparkai.com    | Provider1!    |
-| Provider | provider2@sparkai.com    | Provider2!    |
 | Customer | sarah@example.com        | Customer1!    |
 | Customer | mike@example.com         | Customer2!    |
 
